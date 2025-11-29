@@ -6,9 +6,9 @@ export async function GET(req, context) {
         const { params } = context;
         const resolved = await params;
 
-        const sessoes_id = Number(resolved.sessoes_id);
+        const cliente_id = Number(resolved.cliente_id);
 
-        if (!sessoes_id) {
+        if (!cliente_id) {
             return NextResponse.json(
                 { error: "ID inválido ou não informado" },
                 { status: 400 }
@@ -16,16 +16,16 @@ export async function GET(req, context) {
         }
 
         const [rows] = await Connection.query(
-            "SELECT * FROM sessoes WHERE sessoes_id = ?",
-            [sessoes_id]
+            "SELECT * FROM clientes WHERE cliente_id = ?",
+            [cliente_id]
         );
 
         return NextResponse.json(rows[0] || {});
 
     } catch (err) {
-        console.error("Erro ao consultar sessão", err);
+        console.error("Erro ao consultar cliente", err);
         return NextResponse.json(
-            { error: "Erro ao consultar sessão" },
+            { error: "Erro ao consultar cliente" },
             { status: 500 }
         );
     }

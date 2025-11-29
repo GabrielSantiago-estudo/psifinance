@@ -1,37 +1,66 @@
-import { NextResponse } from 'next/server';
-import Connection from '@/lib/database/connection';
+import { NextResponse } from "next/server";
+import { Connection } from "@/lib/connection";
+import bcrypt from "bcryptjs";
 
-// GET: Listar transações do psicólogo
 export async function GET() {
   try {
-    const [rows] = await Connection.execute(
-      'SELECT * FROM transactions WHERE psychologist_id = ?',
-      [psychologist_id]
+    const [rows] = await Connection.query(
+      "SELECT * FROM transacoes"
     );
 
     return NextResponse.json(rows);
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+  } catch (err) {
+    console.log("Erro ao consultar transações", err);
+    return NextResponse.json(
+      { error: "Erro ao consultar transações" },
+      { status: 500 }
+    );
   }
 }
 
-// POST: Criar nova transação
-export async function POST(request) {
+export async function POST(req) {
   try {
-    const psychologist_id = 1;
-    const data = await request.json();
+    const body = await req.json();
 
-    const { session_id, trans_type, trans_category, amount, trans_date, trans_status } = data;
+    const {
+      tipo,
+      categoria,
+      valor,
+      data_transacao,
+      status
+    } = body;
 
-    // Corrigido: trocado pool por Connection
-    const [result] = await Connection.execute(
-      `INSERT INTO transactions (psychologist_id, session_id, trans_type, trans_category, amount, trans_date, trans_status, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-      [psychologist_id, session_id, trans_type, trans_category, amount, trans_date, trans_status]
+    if (
+      !tipo ||
+      !categoria ||
+      !valor ||
+      !data_transacao ||
+    ) {
+      return NextResponse.json(
+        { error: "Dados incompletos!" },
+        { status: 400 }
+      );
+    }
+
+    const [result] = await Connection.query(
+      `INSERT INTO transacoes (tipo, categoria, valor, data_transacao, status) VALUES (?, ?, ?, ?, ?)`,
+      [tipo, categoria, valor, data_transacao, status]
     );
 
-    return NextResponse.json({ id: result.insertId, ...data }, { status: 201 });
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const transacao_id = result.insertId;
+
+    return NextResponse.json(
+      { success: true, transacao_id },
+      { status: 201 }
+
+    );
+
+  } catch (err) {
+    console.error("Erro ao criar transação:", err);
+    return NextResponse.json(
+      { error: "Erro interno no servidor!" },
+      { status: 500 }
+    );
   }
 }

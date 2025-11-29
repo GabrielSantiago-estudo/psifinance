@@ -1,39 +1,68 @@
-import { NextResponse } from 'next/server';
-import Connection from '@/lib/database/connection';
+import { NextResponse } from "next/server";
+import { Connection } from "@/lib/connection";
+import bcrypt from "bcryptjs";
 
-// GET: Listar metas do psicólogo
-export async function GET(request) {
+export async function GET() {
   try {
-    const psychologist_id = 1;
-
-    const [rows] = await Connection.execute(
-      'SELECT * FROM goals WHERE psychologist_id = ?',
-      [psychologist_id]
+    const [rows] = await Connection.query(
+      "SELECT * FROM metas"
     );
 
     return NextResponse.json(rows);
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+  } catch (err) {
+    console.log("Erro ao consultar metas", err);
+    return NextResponse.json(
+      { error: "Erro ao consultar metas" },
+      { status: 500 }
+    );
   }
 }
 
-// POST: Criar nova meta
-export async function POST(request) {
+export async function POST(req) {
   try {
-    const psychologist_id = 1;
-    const data = await request.json();
+    const body = await req.json();
 
-    const { goal_type, target_amount, target_sessions, target_active, start_date, end_date } = data;
+    const {
+      tipo_meta,
+      valor_alvo,
+      sessoes_alvo,
+      data_inicio,
+      data_fim
+    } = body;
 
-    // Corrigido: trocado pool por Connection
-    const [result] = await Connection.execute(
-      `INSERT INTO goals (psychologist_id, goal_type, target_amount, target_sessions, target_active, start_date, end_date, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-      [psychologist_id, goal_type, target_amount, target_sessions, target_active, start_date, end_date]
+    if (
+      !tipo_meta ||
+      !valor_alvo ||
+      !sessoes_alvo ||
+      !data_inicio ||
+      !data_fim ||
+    ) {
+      return NextResponse.json(
+        { error: "Dados incompletos!" },
+        { status: 400 }
+      );
+    }
+
+
+    const [result] = await Connection.query(
+      `INSERT INTO metas (tipo_meta, valor_alvo, sessoes_alvo, data_inicio, data_fim) VALUES (?, ?, ?, ?, ?)`,
+      [tipo_meta, valor_alvo, sessoes_alvo, data_inicio, data_fim]
     );
 
-    return NextResponse.json({ id: result.insertId, ...data }, { status: 201 });
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const meta_id = result.insertId;
+
+    return NextResponse.json(
+      { success: true, meta_id },
+      { status: 201 }
+
+    );
+
+  } catch (err) {
+    console.error("Erro ao criar meta:", err);
+    return NextResponse.json(
+      { error: "Erro interno no servidor!" },
+      { status: 500 }
+    );
   }
 }

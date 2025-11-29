@@ -1,39 +1,72 @@
-import { NextResponse } from 'next/server';
-import Connection from '@/lib/database/connection';
+import { NextResponse } from "next/server";
+import { Connection } from "@/lib/connection";
+import bcrypt from "bcryptjs";
 
-// GET: Listar sessões do psicólogo
-export async function GET(request) {
+export async function GET() {
   try {
-    const psychologist_id = 1;
-
-    const [rows] = await Connection.execute(
-      'SELECT * FROM sessions WHERE psychologist_id = ?',
-      [psychologist_id]
+    const [rows] = await Connection.query(
+      "SELECT * FROM sessoes"
     );
 
     return NextResponse.json(rows);
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+  } catch (err) {
+    console.log("Erro ao consultar sessões", err);
+    return NextResponse.json(
+      { error: "Erro ao consultar sessões" },
+      { status: 500 }
+    );
   }
 }
 
-// POST: Agendar nova sessão
-export async function POST(request) {
+export async function POST(req) {
   try {
-    const psychologist_id = 1;
-    const data = await request.json();
+    const body = await req.json();
 
-    const { client_id, session_date, session_time, session_type, value, session_status, notes, location, reminder_sent } = data;
+    const {
+      data_sessao,
+      horario,
+      tipo,
+      valor,
+      status,
+      local_atendimento,
+      lembrete_enviado,
+      observacoes
+    } = body;
 
-    // Corrigido: trocado pool por Connection
-    const [result] = await Connection.execute(
-      `INSERT INTO sessions (psychologist_id, client_id, session_date, session_time, session_type, value, session_status, notes, location, reminder_sent, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-      [psychologist_id, client_id, session_date, session_time, session_type, value, session_status, notes, location, reminder_sent]
+    if (
+      !data_sessao ||
+      !horario ||
+      !tipo ||
+      !valor ||
+      !status ||
+      !local_atendimento ||
+      !lembrete_enviado ||
+      !observacoes === undefined
+    ) {
+      return NextResponse.json(
+        { error: "Dados incompletos!" },
+        { status: 400 }
+      );
+    }
+
+    const [result] = await Connection.query(
+      `INSERT INTO sessoes (data_sessao, horario, tipo, valor, status, local_atendimento, lembrete_enviado, observacoes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [data_sessao, horario, tipo, valor, status, local_atendimento, lembrete_enviado, observacoes]
     );
 
-    return NextResponse.json({ id: result.insertId, ...data }, { status: 201 });
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const sessaoId = result.insertId;
+    return NextResponse.json(
+      { success: true, sessaoId },
+      { status: 201 }
+
+    );
+
+  } catch (err) {
+    console.error("Erro ao criar sessão:", err);
+    return NextResponse.json(
+      { error: "Erro interno no servidor!" },
+      { status: 500 }
+    );
   }
 }
