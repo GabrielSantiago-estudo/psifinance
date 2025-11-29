@@ -1,69 +1,80 @@
-import { NextResponse } from 'next/server';
-import { Connection } from '@/lib/connection';
+import { NextResponse } from "next/server";
+import { Connection } from "@/lib/connection";
+import bcrypt from "bcryptjs";
 
-// GET: Obter perfil do psicólogo
 export async function GET() {
   try {
-    const psychologist_id = 1; // temporário / alterar futuramente
-
-    const [rows] = await Connection.execute(
-      'SELECT * FROM psychologist_profile WHERE id = ?',
-      [psychologist_id]
+    const [rows] = await Connection.query(
+      "SELECT * FROM psicologos"
     );
 
-    if (rows.length === 0) {
-      return NextResponse.json({ error: 'Perfil não encontrado' }, { status: 404 });
-    }
+    return NextResponse.json(rows);
 
-    return NextResponse.json(rows[0]);
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err) {
+    console.log("Erro ao consultar psicólogas", err);
+    return NextResponse.json(
+      { error: "Erro ao consultar psicólogas" },
+      { status: 500 }
+    );
   }
 }
 
-export async function POST(request) {
+export async function POST(req) {
   try {
-    const body = await request.json();
-    const { 
-      full_name, email, phone, avatar_url, specialization, crp_number, dark_mode_enabled, email_notifications
+    const body = await req.json();
+
+    const {
+      nome,
+      email,
+      telefone,
+      senha,
+      crp,
+      avatar_url,
+      especializacao,
+      dark_mode,
+      notificacoes_email
     } = body;
-    if (!full_name || !email || !phone || !specialization || !crp_number) {
-      return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 });
+
+    if (
+      !nome ||
+      !telefone ||
+      !email ||
+      !senha ||
+      !crp ||
+      especializacao === undefined ||
+      dark_mode === undefined ||
+      notificacoes_email === undefined
+    ) {
+      return NextResponse.json(
+        { error: "Dados incompletos!" },
+        { status: 400 }
+      );
     }
-    const [result] = await Connection.query(
-      " INSERT INTO psychologist_profile (full_name, email, phone, avatar_url, specialization, crp_number, dark_mode_enabled, email_notifications, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
-      [full_name, email, phone, avatar_url, specialization, crp_number, dark_mode_enabled, email_notifications]
-    )
-    return NextResponse.json({ id: result.insertId }, { status: 201 });
-  }
-  catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Erro ao criar perfil do psicólogo' }, { status: 500 });
-  }
-}
 
-// PUT: Atualizar perfil do psicólogo
-export async function PUT(request) {
-  try {
-    const psychologist_id = 1;
-    const data = await request.json();
-
-    const { full_name, email, phone, avatar_url, specialization, crp_number, dark_mode_enabled, email_notifications } = data;
-
-    // Corrigido: trocado pool por Connection
-    const [result] = await Connection.execute(
-      `UPDATE psychologist_profile 
-       SET full_name = ?, email = ?, phone = ?, avatar_url = ?, specialization = ?, crp_number = ?, dark_mode_enabled = ?, email_notifications = ?, updated_at = CURRENT_TIMESTAMP 
-       WHERE id = ?`,
-      [full_name, email, phone, avatar_url, specialization, crp_number, dark_mode_enabled, email_notifications, psychologist_id]
+    const telefoneLimpo = telefone.replace(/\D/g, "");
+    const hash = await bcrypt.hashSync(
+      process.env.DEFAULT_PASSWORD,
+      bcrypt.genSaltSync(10)
     );
 
-    if (result.affectedRows === 0) {
-      return NextResponse.json({ error: 'Perfil não encontrado' }, { status: 404 });
-    }
+    const [result] = await Connection.query(
+      `INSERT INTO psicologos (nome, email, senha, telefone, crp, avatar_url, especializacao, dark_mode, notificacoes_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [nome, email, hash, telefoneLimpo, crp, avatar_url, especializacao, dark_mode, notificacoes_email]
+    );
 
-    return NextResponse.json({ message: 'Perfil atualizado com sucesso' });
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const psicologoId = result.insertId;
+
+    return NextResponse.json(
+      { success: true, psicologoId },
+      { status: 201 }
+
+    );
+
+  } catch (err) {
+    console.error("Erro ao criar psicólogo:", err);
+    return NextResponse.json(
+      { error: "Erro interno no servidor!" },
+      { status: 500 }
+    );
   }
 }
